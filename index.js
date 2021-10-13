@@ -39,12 +39,16 @@ app.use(
 );
 
 app.use(
-  auth({
-    secret: SESSION_SECRET,
-    authRequired: false,
-    auth0Logout: true,
-    baseURL: APP_URL,
-  })
+ auth({
+  secret: SESSION_SECRET,
+  authRequired: false,
+  auth0Logout: true,
+  baseURL: APP_URL,
+  authorizationParams: {
+   response_type: "code id_token",
+   audience: "https://expenses-api",
+  },
+ })
 );
 
 app.get("/", async (req, res, next) => {
@@ -70,15 +74,20 @@ app.get("/user", requiresAuth(), async (req, res) => {
 });
 
 app.get("/expenses", requiresAuth(), async (req, res, next) => {
-  try {
-    const expenses = await axios.get(`${API_URL}/reports`);
-    res.render("expenses", {
-      user: req.oidc && req.oidc.user,
-      expenses: expenses.data,
-    });
-  } catch (err) {
-    next(err);
-  }
+ try {
+  const { token_type, access_token } = req.oidc.accessToken;
+  const expenses = await axios.get(`${API_URL}/reports`, {
+   headers: {
+    Authorization: `${token_type} ${access_token}`,
+   },
+  });
+  res.render("expenses", {
+   user: req.oidc && req.oidc.user,
+   expenses: expenses.data,
+  });
+ } catch (err) {
+  next(err);
+ }
 });
 
 // catch 404 and forward to error handler
